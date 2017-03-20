@@ -8,14 +8,19 @@
   <script type="text/javascript" src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>WebSocket-Chat</h1>
-      <form class="form-inline">
-        <div class="form-group">
-          <label for="msgForm">名前：</label>
-          <input type="text" class="form-control" id="msgForm">
-        </div>
-          <button type="submit" class="btn btn-primary">入出</button>
+    <div class="container">
+        <h1>WebSocket-Chat</h1>
+        <form class="form-inline">
+            <div class="form-group">
+                <label class="roomLabel" for="rooms">部屋: </label>
+                <select class="form-control" id="rooms">
+                    <option value="room01">部屋01</option>
+                    <option value="room02">部屋02</option>
+                </select>
+                <label class="nameLabel" for="msgForm">名前：</label>
+                <input type="text" class="form-control" id="msgForm">
+            </div>
+          <button type="submit" class="btn btn-primary" name="enter">入出</button>
       </form>
       <div id="chatLogs"></div>
   </div>
@@ -33,15 +38,22 @@
             $("#chatLogs").append("<div>" + text + "</div>");
         }
 
-        $("form").submit(function(e){
+        $("button").click(function(e){
             var message = $("#msgForm").val();
+            var selectRoom = $("#rooms").val();
             $("#msgForm").val('');
             if (isEnter) {
-                message = "[" + name + "]: " + message;
-                socket.emit("client_to_server", {value: message});
+                if ($(this).attr("name") == "send") {
+                    message = "[" + name + "]: " + message;
+                    socket.emit("client_to_server", {value: message});
+                } else {
+                    socket.emit("client_to_server_leave");
+                    changeLabel();
+                }
             } else {
                 name = message;
-                var entryMessage = message + "さんが入出しました。"
+                var entryMessage = message + "さんが入室しました。"
+                socket.emit("client_to_server_join", {value: selectRoom});
                 socket.emit("client_to_server_broadcast", {value: entryMessage});
                 socket.emit("client_to_server_unicast", {value: name});
                 changeLabel();
@@ -49,10 +61,20 @@
             e.preventDefault();
         });
 
-        function changeLabel() {
-            $("label").text("メッセージ");
-            $("button").text("送信");
-            isEnter = true;
+        function changeLabel(type) {
+            if (isEnter) {
+                $(".nameLabel").text("名前");
+                $("#rooms").prop("disabled", false);
+                $("button[name='send']").text("入出").attr("name", "enter");
+                $("button[name='exit']").remove();
+                isEnter = false;
+            } else {
+                $(".nameLabel").text("メッセージ");
+                $("#rooms").prop("disabled", true);
+                $("button[name='enter']").text("送信").attr("name", "send")
+                $("form").append('<button type="submit" class="btn btn-primary" name="exit">退出</button>');
+                isEnter = true;
+            }
         };
     </script>
 </body>
